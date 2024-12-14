@@ -3,52 +3,77 @@ const User = require("../models/User");
 const CryptoJS = require("crypto-js");
 const jwt = require("jsonwebtoken");
 
-//register
-router.post("/register", async (req, res) => {
-    const newUser = new User({
-        username: req.body.username,
-        email: req.body.email,
-        password: CryptoJS.AES.encrypt(
-            req.body.password,
-            process.env.PASS_SEC
-        ).toString(),
-    });
+// LOGIN
+router.post("/login", async (req, res) => {
+  try {
+    const { email, password } = req.body;
 
-    try {
-        const savedUser = await newUser.save();
-        res.status(201).json(savedUser);
-    } catch (err) {
-        res.status(500).json(err);
+    if (!email || !password) {
+      return res.status(400).json("Email and password are required.");
     }
+
+    const user = await User.findOne({ email });
+    if (!user) {
+      return res.status(401).json("Invalid email or password.");
+    }
+
+    const hashedPassword = CryptoJS.AES.decrypt(
+      user.password,
+      process.env.PASS_SEC
+    );
+    const originalPassword = hashedPassword.toString(CryptoJS.enc.Utf8);
+
+    if (originalPassword !== password) {
+      return res.status(401).json("Invalid email or password.");
+    }
+
+    const accessToken = jwt.sign(
+      { id: user._id, isAdmin: user.isAdmin },
+      process.env.JWT_SEC,
+      { expiresIn: "3d" }
+    );
+
+    const { password: _, ...others } = user._doc;
+    res.status(200).json({ ...others, accessToken });
+  } catch (err) {
+    console.error(err);
+    res.status(500).json("Internal server error.");
+  }
 });
 
-//login
-router.post("/login", async (req, res) => {
-    try {
-        const user = await User.findOne({ username: req.body.username });
-        !user && res.status(401).json("Wrong credentials!");
-        const hashedPassword = CryptoJS.AES.decrypt(
-            user.password,
-            process.env.PASS_SEC
-        );
-        const Originalpassword = hashedPassword.toString(CryptoJS.enc.Utf8);
-        Originalpassword !== req.body.password &&
-            res.status(401).json("Wrong credentials!");
-        const AccessToken = jwt.sign(
-            {
-                id: user._id,
-                isAdmin: user.isAdmin,
-            },
-            process.env.JWT_SEC,
-            { expiresIn: "3d" }
-        );
+// REGISTER
+router.post("/register", async (req, res) => {
+  try {
+    const { username, email, password } = req.body;
 
-        const { password, ...others } = user._doc;
-
-        res.status(200).json({ ...others, AccessToken });
-    } catch (err) {
-        res.status(500).json(err);
+    if (!username || !email || !password) {
+      return res.status(400).json("All fields are required.");
     }
+
+    const existingUser = await User.findOne({ email });
+    if (existingUser) {
+      return res.status(409).json("Email is already registered.");
+    }
+
+    const encryptedPassword = CryptoJS.AES.encrypt(
+      password,
+      process.env.PASS_SEC
+    ).toString();
+
+    const newUser = new User({
+      username,
+      email,
+      password: encryptedPassword,
+    });
+
+    const savedUser = await newUser.save();
+
+    const { password: _, ...userDetails } = savedUser._doc;
+    res.status(201).json(userDetails);
+  } catch (err) {
+    console.error(err);
+    res.status(500).json("Internal server error.");
+  }
 });
 
 module.exports = router;
