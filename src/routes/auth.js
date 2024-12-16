@@ -3,7 +3,9 @@ const User = require("../models/User");
 const CryptoJS = require("crypto-js");
 const jwt = require("jsonwebtoken");
 const { verifyTokenAndAdmin } = require("./verifyToken");
+const env = require("../lib/env");
 
+const { PASS_SEC, JWT_SEC } = env;
 // LOGIN
 router.post("/login", async (req, res) => {
   try {
@@ -18,10 +20,7 @@ router.post("/login", async (req, res) => {
       return res.status(401).json("Invalid email or password.");
     }
 
-    const hashedPassword = CryptoJS.AES.decrypt(
-      user.password,
-      process.env.PASS_SEC
-    );
+    const hashedPassword = CryptoJS.AES.decrypt(user.password, PASS_SEC);
     const originalPassword = hashedPassword.toString(CryptoJS.enc.Utf8);
 
     if (originalPassword !== password) {
@@ -30,7 +29,7 @@ router.post("/login", async (req, res) => {
 
     const accessToken = jwt.sign(
       { id: user._id, isAdmin: user.isAdmin },
-      process.env.JWT_SEC,
+      JWT_SEC,
       { expiresIn: "3d" }
     );
 
@@ -58,7 +57,7 @@ router.post("/register", async (req, res) => {
 
     const encryptedPassword = CryptoJS.AES.encrypt(
       password,
-      process.env.PASS_SEC
+      PASS_SEC
     ).toString();
 
     const newUser = new User({

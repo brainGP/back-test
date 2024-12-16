@@ -4,6 +4,8 @@ const {
   verifyTokenAndAuthorization,
   verifyTokenAndAdmin,
 } = require("./verifyToken");
+const env = require("../lib/env");
+const { PASS_SEC } = env;
 
 const router = require("express").Router();
 
@@ -13,7 +15,7 @@ router.put("/:id", verifyTokenAndAdmin, async (req, res) => {
     if (req.body.password) {
       const encryptedPassword = CryptoJS.AES.encrypt(
         req.body.password,
-        process.env.PASS_SEC
+        PASS_SEC
       ).toString();
 
       req.body.password = encryptedPassword;

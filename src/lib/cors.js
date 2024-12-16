@@ -1,6 +1,15 @@
 const cors = require("cors");
+const env = require("./env");
 
-const allowedOrigins = ["http://localhost:3000"];
+const { ALLOWED_CORS } = env;
+
+const allowedList = ALLOWED_CORS.split(",") || [];
+const allowedOrigins = [
+  ...allowedList,
+  "https://retevis-clzflylgb-braingps-projects.vercel.app",
+  "https://retevis-braingps-projects.vercel.app",
+  "https://retevis.vercel.app",
+];
 
 const corsOptions = cors({
   origin: allowedOrigins,
