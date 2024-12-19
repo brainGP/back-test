@@ -3,7 +3,7 @@ const env = require("../lib/env");
 const { JWT_SEC } = env;
 
 const verifyToken = (req, res, next) => {
-  const authHeader = req.headers.token;
+  const authHeader = req.headers.authorization;
   if (authHeader) {
     const token = authHeader.split(" ")[1];
     jwt.verify(token, JWT_SEC, (err, user) => {
