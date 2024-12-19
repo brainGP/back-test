@@ -15,7 +15,7 @@ const corsOptions = cors({
   origin: allowedOrigins,
   allowedHeaders: ["Authorization", "Content-Type", "Accept-Ranges", "Device"],
   methods: ["GET", "POST", "PUT", "DELETE"],
-  credentials: true,
+  credentials: false,
 });
 
 module.exports = corsOptions;
