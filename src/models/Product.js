@@ -1,5 +1,6 @@
 const mongoose = require("mongoose");
 const { v4: uuid } = require("uuid");
+
 const productSchema = new mongoose.Schema({
   id: {
     type: String,
@@ -18,13 +19,15 @@ const productSchema = new mongoose.Schema({
   power: { type: String, required: true },
   hertz: { type: String, required: true },
   status: { type: String, default: "false" },
-  size: [
+  description: { type: String, required: true },
+  rating: { type: String, required: true },
+  quantity: { type: String, required: true },
+  size: { type: String, required: false },
+  images: [
     {
-      height: { type: String, required: false },
-      width: { type: String, required: false },
+      image: { type: String, required: true },
     },
   ],
-  image: { type: String, required: true },
 });
 
 module.exports = mongoose.model("Product", productSchema);

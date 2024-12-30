@@ -6,7 +6,7 @@ const router = require("express").Router();
 //CREATE
 router.post("/", verifyTokenAndAdmin, async (req, res) => {
   const newProduct = new Product(req.body);
-  console.log(newProduct);
+
   try {
     const savedProduct = await newProduct.save();
     res.status(200).json(savedProduct);
@@ -54,10 +54,12 @@ router.get("/find/:id", verifyTokenAndAdmin, async (req, res) => {
 
 //GET ALL PRODUCT WITH 5 LIMIT when(?new=true)
 router.get("/", async (req, res) => {
-  const query = req.query.new;
+  const { new: isNew, ...query } = req.query;
   try {
-    const products = query
+    const products = isNew
       ? await Product.find().sort({ _id: -1 }).limit(5)
+      : query
+      ? await Product.find(query)
       : await Product.find();
 
     res.status(200).json({ products });

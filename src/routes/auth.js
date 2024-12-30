@@ -35,8 +35,7 @@ router.post("/login", async (req, res) => {
 
     const { password: _, ...others } = user._doc;
     res.status(200).json({ ...others, accessToken });
-  } catch (err) {
-    console.error(err);
+  } catch {
     res.status(500).json("Internal server error.");
   }
 });
@@ -70,17 +69,15 @@ router.post("/register", async (req, res) => {
 
     const { password: _, ...userDetails } = savedUser._doc;
     res.status(201).json(userDetails);
-  } catch (err) {
+  } catch {
     console.error(err);
-    res.status(500).json("Internal server error.");
   }
 });
 
 router.get("/admin", verifyTokenAndAdmin, async (req, res) => {
   try {
     res.status(200).json(true);
-  } catch (err) {
-    console.error(err);
+  } catch {
     res.status(500).json("Internal server error.");
   }
 });
