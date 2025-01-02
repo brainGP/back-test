@@ -9,7 +9,7 @@ const allowedOrigins = [
   "https://retevis-clzflylgb-braingps-projects.vercel.app",
   "https://retevis-braingps-projects.vercel.app",
   "https://retevis.vercel.app",
-  "https://retevis-mvt7gwpjt-braingps-projects.vercel.app/",
+  "https://retevis-mvt7gwpjt-braingps-projects.vercel.app",
 ];
 
 const corsOptions = cors({
