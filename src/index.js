@@ -3,10 +3,12 @@ const express = require("express");
 const userRoute = require("./routes/user");
 const authRoute = require("./routes/auth");
 const productRoute = require("./routes/product");
+const bannerRoute = require("./routes/dashboard");
 const path = require("path");
 const connectDb = require("./lib/db");
 const cors = require("./lib/cors");
 const env = require("./lib/env");
+const Banner = require("./models/Banner");
 
 const app = express();
 
@@ -22,10 +24,16 @@ app.use("/images", express.static("/public/images"));
 app.use("/api/user", userRoute);
 app.use("/api/auth", authRoute);
 app.use("/api/product", productRoute);
+app.use("/api/dashboard", bannerRoute);
 
-app.use("/stations", express.static(path.join(__dirname, "public", "stations")));
+app.use("/banner", express.static(path.join(__dirname, "public", "banner")));
+
+app.use(
+  "/stations",
+  express.static(path.join(__dirname, "public", "stations"))
+);
 app.use("/", express.static(path.join(__dirname, "public")));
 
 app.listen(PORT, () => {
-    console.log(`backend running on port: ${PORT}`);
+  console.log(`backend running on port: ${PORT}`);
 });
