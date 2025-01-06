@@ -6,7 +6,7 @@ const { ALLOWED_CORS } = env;
 const allowedList = ALLOWED_CORS.split(",") || [];
 const allowedOrigins = [
   ...allowedList,
-  "https://retevis-clzflylgb-braingps-projects.vercel.app",
+  "https://retevis-afwd9y9qd-braingps-projects.vercel.app",
   "https://retevis-braingps-projects.vercel.app",
   "https://retevis.vercel.app",
   "https://retevis-mvt7gwpjt-braingps-projects.vercel.app",
