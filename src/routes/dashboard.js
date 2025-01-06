@@ -21,7 +21,7 @@ const upload = multer({ storage });
 router.post(
   "/",
   verifyTokenAndAdmin,
-  upload.single("image"),
+  upload.single("banner"),
   async (req, res) => {
     try {
       if (!req.file) {
