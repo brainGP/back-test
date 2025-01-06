@@ -24,15 +24,17 @@ router.post(
   upload.single("image"),
   async (req, res) => {
     try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No file uploaded." });
+      }
+
       const newBanner = new Banner({
         image: `/banner/${req.file.filename}`,
-        ...req.body,
       });
       const savedBanner = await newBanner.save();
-
       res.status(200).json(savedBanner);
     } catch (err) {
-      console.error(err);
+      console.error("Error while saving banner:", err);
       res
         .status(500)
         .json({ error: "An error occurred while saving the banner." });
