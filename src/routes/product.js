@@ -88,6 +88,20 @@ router.get("/find/:name", async (req, res) => {
   }
 });
 
+router.get("/find/:id", verifyTokenAndAdmin, async (req, res) => {
+  try {
+    const product = await Product.findById(req.params.id);
+    if (!product) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
+    res.status(200).json(product);
+  } catch (err) {
+    res.status(500).json(err);
+    res.status(500).json({ error: err.message });
+  }
+});
+
 //GET ALL PRODUCT WITH 5 LIMIT when(?new=true)
 router.get("/", async (req, res) => {
   const { new: isNew, ...query } = req.query;
