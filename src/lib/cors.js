@@ -10,7 +10,7 @@ const allowedOrigins = [
   "https://retevis.mn",
   "https://retevis.vercel.app",
   "http://localhost",
-  "http://retevis123.vercel.app",
+  "https://retevis123.vercel.app",
 ];
 
 console.log(allowedOrigins);
