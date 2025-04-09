@@ -1,27 +1,33 @@
+const express = require("express");
+const router = express.Router();
 const Product = require("../models/Product");
 const { verifyTokenAndAdmin } = require("./verifyToken");
 const multer = require("multer");
-const path = require("path");
-const fs = require("fs");
-const express = require("express");
-const router = express.Router();
+const cloudinary = require("../lib/cloudinary");
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "../public/stations"));
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, `${uniqueSuffix}-${file.originalname}`);
-  },
-});
-
+// Use memory storage to handle files in memory before uploading to Cloudinary
+const storage = multer.memoryStorage();
 const upload = multer({
   storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB
 });
 
-// CREATE
+// Helper to upload to Cloudinary
+const uploadToCloudinary = (buffer, filename) => {
+  return new Promise((resolve, reject) => {
+    cloudinary.uploader
+      .upload_stream(
+        { resource_type: "image", folder: "stations", public_id: filename },
+        (error, result) => {
+          if (error) reject(error);
+          else resolve(result);
+        }
+      )
+      .end(buffer);
+  });
+};
+
+// CREATE PRODUCT
 router.post(
   "/",
   verifyTokenAndAdmin,
@@ -29,41 +35,53 @@ router.post(
   async (req, res) => {
     try {
       const imageFiles = req.files;
-      const imageUrls = imageFiles.map((file) => ({
-        image: `/stations/${file.filename}`,
+
+      // Upload each image to Cloudinary
+      const uploadPromises = imageFiles.map((file) =>
+        uploadToCloudinary(file.buffer, file.originalname)
+      );
+
+      const results = await Promise.all(uploadPromises);
+
+      const imageUrls = results.map((result) => ({
+        image: result.secure_url,
       }));
+
       const newProduct = new Product({
         ...req.body,
         images: imageUrls,
       });
+
       const savedProduct = await newProduct.save();
       res.status(200).json(savedProduct);
     } catch (err) {
-      console.error(err);
-      res
-        .status(500)
-        .json({ error: "Something went wrong while saving the product." });
+      console.error("Upload error:", err);
+      res.status(500).json({ error: "Image upload or product save failed." });
     }
   }
 );
 
-//UPDATE
+// UPDATE PRODUCT
 router.put("/:id", verifyTokenAndAdmin, async (req, res) => {
   try {
     const updatedProduct = await Product.findByIdAndUpdate(
       req.params.id,
-      {
-        $set: req.body,
-      },
+      { $set: req.body },
       { new: true }
     );
+
+    if (!updatedProduct) {
+      return res.status(404).json({ message: "Product not found" });
+    }
+
     res.status(200).json(updatedProduct);
   } catch (err) {
-    res.status(500).json(err);
+    console.error(err); // Log error to help with debugging
+    res.status(500).json({ message: "Internal server error" });
   }
 });
 
-//DELETE
+// DELETE PRODUCT
 router.delete("/:id", verifyTokenAndAdmin, async (req, res) => {
   try {
     await Product.findByIdAndDelete(req.params.id);
@@ -73,36 +91,29 @@ router.delete("/:id", verifyTokenAndAdmin, async (req, res) => {
   }
 });
 
-//GET PRODUCT
+// GET PRODUCT BY NAME
 router.get("/find/:name", async (req, res) => {
   try {
     const product = await Product.findOne({ name: req.params.name });
-
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
+    if (!product) return res.status(404).json({ message: "Product not found" });
     res.status(200).json(product);
   } catch (err) {
     res.status(500).json({ error: err.message });
   }
 });
 
+// GET PRODUCT BY ID
 router.get("/find/:id", verifyTokenAndAdmin, async (req, res) => {
   try {
     const product = await Product.findById(req.params.id);
-    if (!product) {
-      return res.status(404).json({ message: "Product not found" });
-    }
-
+    if (!product) return res.status(404).json({ message: "Product not found" });
     res.status(200).json(product);
   } catch (err) {
-    res.status(500).json(err);
     res.status(500).json({ error: err.message });
   }
 });
 
-//GET ALL PRODUCT WITH 5 LIMIT when(?new=true)
+// GET ALL PRODUCTS
 router.get("/", async (req, res) => {
   const { new: isNew, ...query } = req.query;
   try {

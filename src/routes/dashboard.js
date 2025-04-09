@@ -1,84 +1,139 @@
-const Banner = require("../models/Banner");
-const { verifyTokenAndAdmin } = require("./verifyToken");
-const multer = require("multer");
-const path = require("path");
 const express = require("express");
 const router = express.Router();
+const multer = require("multer");
+const cloudinary = require("../lib/cloudinary");
+const { verifyTokenAndAdmin } = require("./verifyToken");
+const { Readable } = require("stream");
+const Banner = require("../models/Banner");
 
-const storage = multer.diskStorage({
-  destination: (req, file, cb) => {
-    cb(null, path.join(__dirname, "../public/banner"));
-  },
-  filename: (req, file, cb) => {
-    const uniqueSuffix = Date.now() + "-" + Math.round(Math.random() * 1e9);
-    cb(null, `${uniqueSuffix}-${file.originalname}`);
-  },
-});
-
+// Cloudinary Storage Setup
+const storage = multer.memoryStorage();
 const upload = multer({
-  storage: storage,
-  limits: { fileSize: 10 * 1024 * 1024 },
+  storage,
+  limits: { fileSize: 10 * 1024 * 1024 }, // 10MB max
 });
 
-// CREATE
+function bufferToStream(buffer) {
+  const stream = new Readable();
+  stream.push(buffer);
+  stream.push(null);
+  return stream;
+}
+
+function uploadToCloudinary(buffer, filename) {
+  return new Promise((resolve, reject) => {
+    const stream = cloudinary.uploader.upload_stream(
+      {
+        resource_type: "image",
+        folder: "banners",
+        public_id: filename,
+      },
+      (error, result) => {
+        if (error) reject(error);
+        else resolve(result);
+      }
+    );
+    bufferToStream(buffer).pipe(stream);
+  });
+}
+
+// CREATE Banner (Single Image Upload)
 router.post(
   "/",
   verifyTokenAndAdmin,
-  upload.single("banner"),
+  upload.single("banner"), // Single file upload, adjust field name as necessary
   async (req, res) => {
     try {
-      if (!req.file) {
-        return res.status(400).json({ error: "No file uploaded." });
+      const { file } = req;
+      const { authorization } = req.headers; // Extract Authorization header
+
+      // If no file is uploaded, return error
+      if (!file) {
+        return res.status(400).json({ error: "No file provided" });
       }
 
+      // If no access token or invalid token, return error
+      if (!authorization || !authorization.startsWith("Bearer ")) {
+        return res.status(401).json({ error: "Unauthorized user" });
+      }
+
+      const accessToken = authorization.split(" ")[1]; // Extract the token
+
+      // If the token is missing or invalid, throw an error
+      if (!accessToken) {
+        return res.status(401).json({ error: "Unauthorized user" });
+      }
+
+      // Upload the image to Cloudinary
+      const uploadedImage = await uploadToCloudinary(
+        file.buffer,
+        file.originalname
+      );
+      const imageUrl = uploadedImage.secure_url;
+
+      // Create a new banner entry
       const newBanner = new Banner({
-        image: `/banner/${req.file.filename}`,
+        image: imageUrl,
+        ...req.body, // other data from request body
       });
+
+      // Save to the database
       const savedBanner = await newBanner.save();
       res.status(200).json(savedBanner);
     } catch (err) {
-      console.error("Error while saving banner:", err);
-      res
-        .status(500)
-        .json({ error: "An error occurred while saving the banner." });
+      console.error("ERROR:", err);
+      res.status(500).json({ error: err.message || "Unknown error" });
     }
   }
 );
 
-// GET
+// GET All Banners
 router.get("/", async (req, res) => {
   try {
-    const banner = await Banner.find();
-
-    res.status(200).json({ banner });
+    const banners = await Banner.find();
+    res.status(200).json({ banners });
   } catch (err) {
-    res.status(404).json(err);
+    res.status(500).json({ error: "Failed to fetch banners." });
   }
 });
+
+// UPDATE Banner (with optional new image upload)
+router.put(
+  "/:id",
+  verifyTokenAndAdmin,
+  upload.single("banner"), // Single file upload, adjust field name as necessary
+  async (req, res) => {
+    try {
+      const banner = await Banner.findById(req.params.id);
+      if (!banner) {
+        return res.status(404).json({ error: "Banner not found." });
+      }
+
+      // If a new file is uploaded, delete the old one from Cloudinary
+      if (req.file) {
+        const oldPublicId = banner.image.split("/").pop().split(".")[0];
+        await cloudinary.uploader.destroy(`banners/${oldPublicId}`);
+        // Upload the new image to Cloudinary
+        const uploadedImage = await uploadToCloudinary(
+          req.file.buffer,
+          req.file.originalname
+        );
+        req.body.image = uploadedImage.secure_url; // set new image path
+      }
+
+      // Update banner with the new image URL or other fields
+      const updatedBanner = await Banner.findByIdAndUpdate(
+        req.params.id,
+        { $set: req.body },
+        { new: true }
+      );
+
+      res.status(200).json(updatedBanner);
+    } catch (err) {
+      console.error("Update error:", err);
+      res.status(500).json({ error: "Failed to update banner." });
+    }
+  }
+);
 
 module.exports = router;
-
-// UPDATE
-router.put("/:id", verifyTokenAndAdmin, async (req, res) => {
-  try {
-    const updatedBanner = await Banner.findByIdAndUpdate(
-      req.params.id,
-      {
-        $set: req.body,
-      },
-      { new: true }
-    );
-    res.status(200).json(updatedBanner);
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
-
-router.delete("/:id", verifyTokenAndAdmin, async (req, res) => {
-  try {
-    await Banner.findByIdAndDelete(req.params.id);
-    res.status(200).json("Product has been deleted!");
-  } catch (err) {
-    res.status(500).json(err);
-  }
-});
