@@ -135,5 +135,13 @@ router.put(
     }
   }
 );
+router.delete("/:id", verifyTokenAndAdmin, async (req, res) => {
+  try {
+    await Banner.findByIdAndDelete(req.params.id);
+    res.status(200).json("Banner has been deleted!");
+  } catch (err) {
+    res.status(500).json(err);
+  }
+});
 
 module.exports = router;
